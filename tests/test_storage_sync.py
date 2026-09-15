@@ -209,6 +209,23 @@ class TripStoreTests(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(coordinates, [[0.0200, 0.0100], [0.0300, 0.0200]])
 
+    async def test_overview_counts_only_usable_routes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            store = TripStore(tmpdir)
+            store.save_trip_charts(
+                {"id": 1, "started_at": "2026-09-14T08:00:00Z"},
+                {"positions": [[52.5208, 13.4095], [52.5184, 13.3763]]},
+            )
+            store.save_trip_charts(
+                {"id": 2, "started_at": "2026-09-15T08:00:00Z"},
+                {"positions": [[52.5208, 13.4095]]},
+            )
+
+            overview = store.overview()
+
+            self.assertEqual(overview["trip_count"], 2)
+            self.assertEqual(overview["route_count"], 1)
+
     async def test_road_frequency_counts_shared_stretches_once_per_trip(self):
         records = [
             {
@@ -243,6 +260,30 @@ class TripStoreTests(unittest.IsolatedAsyncioTestCase):
         heatmap = road_frequency_geojson(records, grid_m=5, date_from="2026-01-01", date_to="2026-12-31")
 
         self.assertEqual(heatmap["properties"]["trips"], 1)
+        self.assertEqual(heatmap["properties"]["routes"], 1)
+
+    async def test_road_frequency_reports_unusable_routes(self):
+        records = [
+            {
+                "trip": {"id": 1, "started_at": "2026-09-14T08:00:00Z"},
+                "charts": {"positions": [[52.5208, 13.4095], [52.5184, 13.3763]]},
+            },
+            {
+                "trip": {"id": 2, "started_at": "2026-09-14T09:00:00Z"},
+                "charts": {"positions": [[52.5208, 13.4095]]},
+            },
+            {
+                "trip": {"id": 3, "started_at": "2026-09-14T10:00:00Z"},
+                "charts": None,
+            },
+        ]
+
+        heatmap = road_frequency_geojson(records, grid_m=50)
+
+        self.assertEqual(heatmap["properties"]["matching_trips"], 3)
+        self.assertEqual(heatmap["properties"]["cached_routes"], 2)
+        self.assertEqual(heatmap["properties"]["routes"], 1)
+        self.assertEqual(heatmap["properties"]["dropped_routes"], 1)
 
 
 if __name__ == "__main__":

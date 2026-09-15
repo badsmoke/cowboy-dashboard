@@ -46,7 +46,6 @@
               </div>
               <div class="mark"><v-icon icon="mdi-bike" /></div>
               <h1>Cowboy Dashboard</h1>
-              <p>{{ t('loginLead') }}</p>
             </div>
             <v-form class="login-form" @submit.prevent="login">
               <div class="form-head">
@@ -94,6 +93,21 @@
               <p>{{ subtitle }}</p>
             </div>
             <div class="topbar-actions">
+              <div class="profile-chip">
+                <div class="profile-avatar" aria-hidden="true">
+                  <img
+                    v-if="showProfileAvatar"
+                    :src="profileAvatarUrl"
+                    :alt="profileName"
+                    @error="profileAvatarFailed = true"
+                  />
+                  <span v-else>{{ profileInitials }}</span>
+                </div>
+                <div class="profile-text">
+                  <strong>{{ profileName }}</strong>
+                  <span>{{ me.email || me.uid || 'Cowboy' }}</span>
+                </div>
+              </div>
               <label class="language-select">
                 <span>{{ t('language') }}</span>
                 <select v-model="language">
@@ -365,7 +379,7 @@
                   <span>{{ t('noRoutesForFilter') }}</span>
                 </div>
                 <div v-else class="heatmap-meta">
-                  {{ roadHeatmapData.properties?.trips || 0 }} {{ t('tripsLower') }} ·
+                  {{ roadRouteCount }} {{ t('routesLower') }} ·
                   {{ roadHeatmapData.properties?.stretches || 0 }} {{ t('segmentsLower') }} ·
                   max {{ roadHeatmapData.properties?.max_count || 0 }}x
                 </div>
@@ -671,7 +685,7 @@
                 <span>{{ t('noRoutesForFilter') }}</span>
               </div>
               <div v-else class="heatmap-meta">
-                {{ roadHeatmapData.properties?.trips || 0 }} {{ t('tripsLower') }} ·
+                {{ roadRouteCount }} {{ t('routesLower') }} ·
                 {{ roadHeatmapData.properties?.stretches || 0 }} {{ t('segmentsLower') }} ·
                 {{ heatmapLegendLabel }}
               </div>
@@ -751,6 +765,7 @@ const heatmapData = ref({ type: 'FeatureCollection', features: [] })
 const roadHeatmapData = ref({ type: 'FeatureCollection', features: [], properties: {} })
 const heatmapBusy = ref(false)
 const mapError = ref('')
+const profileAvatarFailed = ref(false)
 const mapReady = ref(false)
 const showFrequency = ref(true)
 const mapMode = ref('heatmap')
@@ -773,7 +788,7 @@ const languageOptions = [
 
 const messages = {
   de: {
-    loginLead: 'Login mit deinem Cowboy Account. Danach Dashboard, Fahrten und Routenkarte anzeigen.',
+    loginLead: '',
     language: 'Sprache',
     signIn: 'Anmelden',
     credentialNotice: 'Die Zugangsdaten bleiben im Backend und werden nicht im Browser gespeichert.',
@@ -810,6 +825,7 @@ const messages = {
     trips: 'Fahrten',
     tripsLower: 'Fahrten',
     routes: 'Strecken',
+    routesLower: 'Strecken',
     route: 'Route',
     distance: 'Distanz',
     rideTime: 'Fahrzeit',
@@ -888,7 +904,7 @@ const messages = {
     heatmapDisplay: 'Heatmap-Darstellung',
   },
   en: {
-    loginLead: 'Sign in with your Cowboy account to view the dashboard, rides, and route map.',
+    loginLead: '',
     language: 'Language',
     signIn: 'Sign in',
     credentialNotice: 'Credentials stay in the backend and are not stored in the browser.',
@@ -925,6 +941,7 @@ const messages = {
     trips: 'Rides',
     tripsLower: 'rides',
     routes: 'Routes',
+    routesLower: 'routes',
     route: 'Route',
     distance: 'Distance',
     rideTime: 'Ride time',
@@ -1025,6 +1042,44 @@ const loadingHint = computed(() => {
   return t('loadingHint')
 })
 
+const profileName = computed(() => {
+  const parts = [me.value.first_name, me.value.last_name].filter(Boolean).join(' ').trim()
+  return me.value.nickname || parts || me.value.email || me.value.uid || 'Cowboy'
+})
+const profileAvatarUrl = computed(() => {
+  return findAvatarUrl([me.value.avatar_url, me.value.avatar, me.value.avatars, me.value.profile_picture, me.value.picture])
+})
+const showProfileAvatar = computed(() => Boolean(profileAvatarUrl.value && !profileAvatarFailed.value))
+const profileInitials = computed(() => {
+  const text = profileName.value || 'Cowboy'
+  const initials = text
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+  return initials || 'C'
+})
+
+function findAvatarUrl(value) {
+  const queue = Array.isArray(value) ? [...value] : [value]
+  const seen = new Set()
+  while (queue.length) {
+    const item = queue.shift()
+    if (!item) continue
+    if (typeof item === 'string' && /^(https?:|data:image\/)/i.test(item)) return item
+    if (typeof item !== 'object' || seen.has(item)) continue
+    seen.add(item)
+    for (const key of ['url', 'avatar_url', 'image_url', 'src', 'large', 'medium', 'small', 'original']) {
+      if (item[key]) queue.unshift(item[key])
+    }
+    for (const nested of Object.values(item)) {
+      if (nested && typeof nested === 'object') queue.push(nested)
+    }
+  }
+  return ''
+}
 const bike = computed(() => me.value.bike || {})
 const bikeName = computed(() => bike.value.nickname || bike.value.serial_number || 'Cowboy')
 const bikeModel = computed(() => bike.value.model?.name || bike.value.model?.description || 'Bike')
@@ -1166,8 +1221,21 @@ const chartOptions = computed(() => {
       intersect: true,
       y: { formatter: (value) => `${Number(value || 0).toLocaleString(locale.value, { maximumFractionDigits: 1 })} km` },
     },
-    xaxis: { categories: buckets.map((bucket) => bucket.label), labels: { rotate: -30 } },
-    yaxis: { labels: { formatter: (value) => `${Math.round(value)} km` } },
+    xaxis: {
+      categories: buckets.map((bucket) => bucket.label),
+      axisBorder: { color: 'rgba(229, 236, 231, 0.45)' },
+      axisTicks: { color: 'rgba(229, 236, 231, 0.45)' },
+      labels: {
+        rotate: -30,
+        style: { colors: '#dce8e1' },
+      },
+    },
+    yaxis: {
+      labels: {
+        formatter: (value) => `${Math.round(value)} km`,
+        style: { colors: '#dce8e1' },
+      },
+    },
   }
 })
 
@@ -1187,6 +1255,7 @@ const filteredGeojson = computed(() => {
 
 const filteredFeatureCount = computed(() => filteredGeojson.value.features.length)
 const roadFeatureCount = computed(() => roadHeatmapData.value.features?.length || 0)
+const roadRouteCount = computed(() => roadHeatmapData.value.properties?.routes ?? roadHeatmapData.value.properties?.trips ?? 0)
 const heatmapStatus = computed(() => {
   const props = roadHeatmapData.value.properties || {}
   const prefix = selectedDatePrefix()
@@ -1194,7 +1263,7 @@ const heatmapStatus = computed(() => {
   const mode = showFrequency.value && mapMode.value === 'heatmap'
     ? t('highlightedFrequency')
     : t('onlyRoutes')
-  return `${props.trips || 0} ${t('tripsLower')}, ${props.stretches || 0} ${t('segmentsLower')}, Grid ${props.grid_m || heatmapGrid.value} m, ${scope}, ${mode}`
+  return `${roadRouteCount.value} ${t('routesLower')}, ${props.stretches || 0} ${t('segmentsLower')}, Grid ${props.grid_m || heatmapGrid.value} m, ${scope}, ${mode}`
 })
 
 const heatmapLegendLabel = computed(() => {
@@ -1238,6 +1307,10 @@ onMounted(async () => {
 
 watch(language, (value) => {
   localStorage.setItem('cowboy-dashboard-language', value)
+})
+
+watch(profileAvatarUrl, () => {
+  profileAvatarFailed.value = false
 })
 
 watch(view, async (value) => {

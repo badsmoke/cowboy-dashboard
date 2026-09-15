@@ -48,6 +48,8 @@ Both repositories were checked. The trip, chart, and auth endpoints used here co
 - [x] Store one JSON record per trip.
 - [x] Store sync state separately.
 - [x] Ignore local cache and real JSON exports in git.
+- [ ] Make storage multi-account safe by namespacing trips, API cache, sync state, metrics, and heatmap data per authenticated account.
+- [ ] Require an authenticated session for trip, metrics, and heatmap endpoints before enabling multi-account usage.
 - [ ] Consider PostgreSQL later.
 - [ ] If PostgreSQL is added, use JSONB for raw chart data and indexed fields for trip dates, bike id, and distance.
 

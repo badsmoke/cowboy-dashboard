@@ -14,12 +14,18 @@ def road_frequency_geojson(
     date_to: str = "",
 ) -> dict[str, Any]:
     tracks = []
+    matching_trips = 0
+    cached_routes = 0
+    dropped_routes = 0
     for record in records:
         trip = record.get("trip") or {}
         started_at = trip.get("started_at") or ""
         if not matches_date_filter(started_at, date_prefix, date_from, date_to):
             continue
+        matching_trips += 1
         charts = record.get("charts") or {}
+        if charts:
+            cached_routes += 1
         coords = [
             [point[1], point[0]]
             for point in charts.get("positions") or []
@@ -27,9 +33,19 @@ def road_frequency_geojson(
         ]
         if len(coords) >= 2:
             tracks.append({"trip": trip, "coords": coords})
+        elif charts:
+            dropped_routes += 1
 
     if not tracks:
-        return empty_collection(grid_m=grid_m, date_prefix=date_prefix, date_from=date_from, date_to=date_to)
+        return empty_collection(
+            grid_m=grid_m,
+            date_prefix=date_prefix,
+            date_from=date_from,
+            date_to=date_to,
+            matching_trips=matching_trips,
+            cached_routes=cached_routes,
+            dropped_routes=dropped_routes,
+        )
 
     lats = [coord[1] for track in tracks for coord in track["coords"]]
     mean_lat = sum(lats) / len(lats)
@@ -116,6 +132,10 @@ def road_frequency_geojson(
             "date_from": date_from,
             "date_to": date_to,
             "trips": len(tracks),
+            "routes": len(tracks),
+            "matching_trips": matching_trips,
+            "cached_routes": cached_routes,
+            "dropped_routes": dropped_routes,
             "stretches": len(counts),
             "paths": sum(len(lines) for lines in grouped.values()),
             "shapes": len(features),
@@ -149,7 +169,15 @@ def simplify_segment(coords: list[list[float]], max_points: int = 12) -> list[li
     return [coords[round(idx * step)] for idx in range(max_points)]
 
 
-def empty_collection(grid_m: float, date_prefix: str, date_from: str = "", date_to: str = "") -> dict[str, Any]:
+def empty_collection(
+    grid_m: float,
+    date_prefix: str,
+    date_from: str = "",
+    date_to: str = "",
+    matching_trips: int = 0,
+    cached_routes: int = 0,
+    dropped_routes: int = 0,
+) -> dict[str, Any]:
     return {
         "type": "FeatureCollection",
         "features": [],
@@ -159,6 +187,10 @@ def empty_collection(grid_m: float, date_prefix: str, date_from: str = "", date_
             "date_from": date_from,
             "date_to": date_to,
             "trips": 0,
+            "routes": 0,
+            "matching_trips": matching_trips,
+            "cached_routes": cached_routes,
+            "dropped_routes": dropped_routes,
             "stretches": 0,
             "paths": 0,
             "shapes": 0,

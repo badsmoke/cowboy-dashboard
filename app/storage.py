@@ -176,7 +176,7 @@ class TripStore:
         records = self.all_records()
         distances = [trip.get("distance") or 0 for trip in trips]
         durations = [trip.get("unlocked_time") or trip.get("moving_time") or 0 for trip in trips]
-        route_count = sum(1 for record in records if record.get("charts"))
+        route_count = sum(1 for record in records if has_usable_route(record))
         return {
             "trip_count": len(trips),
             "route_count": route_count,
@@ -193,3 +193,15 @@ def parse_datetime(value: str) -> datetime:
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone().replace(tzinfo=None)
     return parsed
+
+
+def has_usable_route(record: dict[str, Any]) -> bool:
+    charts = record.get("charts") or {}
+    positions = charts.get("positions") or []
+    usable_points = 0
+    for point in positions:
+        if isinstance(point, (list, tuple)) and len(point) == 2 and point[0] is not None and point[1] is not None:
+            usable_points += 1
+        if usable_points >= 2:
+            return True
+    return False

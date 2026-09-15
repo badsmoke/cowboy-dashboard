@@ -75,8 +75,16 @@ badsmoke/cowboy-dashboard-web
 
 The compose file keeps local `build` definitions and tags the services with these image names.
 
+To build the images yourself and start the stack:
+
 ```bash
-docker compose up --build
+docker compose up -d --build
+```
+
+Or start the stack from already available images:
+
+```bash
+docker compose up -d
 ```
 
 Then open:
