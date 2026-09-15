@@ -95,6 +95,19 @@ Then open:
 
 Sign in through the Web UI with your Cowboy account. The backend keeps the session in memory.
 
+## Reverse Proxy / HTTPS
+
+For HTTPS deployments, put your reverse proxy in front of the web container and forward public traffic to port `8080` on the host, or to port `80` of the `cowboy-web` container on the Docker network.
+
+The browser only talks to the web origin. All frontend API calls use relative `/api/...` paths, and the web container proxies those requests internally to the backend container. This means a public deployment can use a single HTTPS origin:
+
+```text
+https://dashboard.example.com/      -> Cowboy Dashboard web UI
+https://dashboard.example.com/api/  -> Cowboy Dashboard backend API
+```
+
+Local deployment still works with `http://localhost:8080`; no reverse proxy is required for local use.
+
 ## Mock Mode
 
 Use the in-process mock Cowboy API for development or tests:
@@ -113,6 +126,7 @@ If the app is later started with `COWBOY_MOCK_SERVER=false`, a local store marke
 
 ```text
 GET  /health
+GET  /api/health
 POST /api/auth/login
 POST /api/auth/logout
 GET  /api/session

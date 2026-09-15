@@ -165,6 +165,7 @@ async def get_cowboy_client(
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "cowboy_mock_server": str(mock_server_enabled()).lower()}
 
