@@ -1,0 +1,30 @@
+services:
+  cowboy-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      COWBOY_EMAIL: ${COWBOY_EMAIL:-}
+      COWBOY_PASSWORD: ${COWBOY_PASSWORD:-}
+      COWBOY_CACHE_DIR: /data/cowboy_cache
+      COWBOY_MOCK_SERVER: ${COWBOY_MOCK_SERVER:-false}
+    volumes:
+      - ./cowboy-cache:/data/cowboy_cache
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  cowboy-web:
+    build: ./web-ui
+    ports:
+      - "8080:80"
+    depends_on:
+      cowboy-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  cowboy-cache:

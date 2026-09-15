@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+cowboy_cache/
+cowboy-cache/
+cowboy-cache*/
+web-ui/node_modules/
+web-ui/dist/
