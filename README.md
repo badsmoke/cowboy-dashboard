@@ -36,6 +36,10 @@ The local cache is application data and must not be committed. `cowboy-cache/`, 
 
 AI assistance was used while creating parts of this project, including code, documentation, and UI iteration. The implementation should still be reviewed and tested before use with a real Cowboy account.
 
+## Credits
+
+Thanks to [`mmmago/cowboyheatmap`](https://github.com/mmmago/cowboyheatmap). This project uses its Cowboy heatmap approach as the basis for the route heatmap implementation.
+
 ## Cowboy API
 
 The Cowboy endpoints were derived from these reference projects:
@@ -62,6 +66,15 @@ See [COWBOY_API.md](./COWBOY_API.md) for endpoint notes and anonymized example p
 
 ## Run With Docker Compose
 
+The Docker images are also published as:
+
+```text
+badsmoke/cowboy-dashboard-api
+badsmoke/cowboy-dashboard-web
+```
+
+The compose file keeps local `build` definitions and tags the services with these image names.
+
 ```bash
 docker compose up --build
 ```
@@ -85,6 +98,8 @@ COWBOY_MOCK_SERVER=true docker compose up --build
 Truthy values are `true`, `1`, `yes`, and `on`.
 
 When mock mode is enabled and the local store is empty, the backend seeds anonymized demo data automatically. A new developer can therefore open the dashboard and see trips, stats, and a heatmap without first calling the real Cowboy API.
+
+If the app is later started with `COWBOY_MOCK_SERVER=false`, a local store marked as mock data is discarded automatically so demo trips are not shown in a real Cowboy session.
 
 ## Backend Endpoints
 

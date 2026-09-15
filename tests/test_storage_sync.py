@@ -8,7 +8,7 @@ from unittest.mock import patch
 import httpx
 
 from app.cowboy import CowboyClient
-from app.main import create_cowboy_client, mock_server_enabled, seed_mock_store_if_needed
+from app.main import create_cowboy_client, discard_mock_store_if_needed, mock_server_enabled, seed_mock_store_if_needed
 from app.storage import TripStore
 from app.heatmap import road_frequency_geojson
 from app.mock_cowboy import app as mock_cowboy_app
@@ -97,6 +97,23 @@ class TripStoreTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(sync["listed_trips"], 2)
             self.assertNotEqual(sync["finished_at"], "mock")
             datetime.fromisoformat(sync["finished_at"].replace("Z", "+00:00"))
+
+    async def test_official_mode_discards_mock_store(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_store = TripStore(tmpdir)
+            temp_store.save_trip_charts(
+                {"id": 1, "started_at": "2026-09-14T08:00:00Z"},
+                {"positions": [[52.5208, 13.4095], [52.5184, 13.3763]]},
+            )
+            temp_store.save_sync_state({"started_at": "2026-09-15T09:00:00Z", "finished_at": "2026-09-15T09:00:00Z", "mock": True})
+
+            with patch.dict("os.environ", {"COWBOY_MOCK_SERVER": "false"}), patch("app.main.store", temp_store):
+                discard_mock_store_if_needed()
+
+            overview = temp_store.overview()
+            self.assertEqual(overview["trip_count"], 0)
+            self.assertEqual(overview["route_count"], 0)
+            self.assertEqual(overview["sync"], {})
 
     async def test_cowboy_client_uses_mock_server(self):
         transport = httpx.ASGITransport(app=mock_cowboy_app)

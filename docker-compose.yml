@@ -1,5 +1,6 @@
 services:
   cowboy-api:
+    image: badsmoke/cowboy-dashboard-api:latest
     build: .
     ports:
       - "8000:8000"
@@ -18,6 +19,7 @@ services:
     restart: unless-stopped
 
   cowboy-web:
+    image: badsmoke/cowboy-dashboard-web:latest
     build: ./web-ui
     ports:
       - "8080:80"

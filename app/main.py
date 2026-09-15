@@ -45,6 +45,7 @@ def create_cowboy_client(email: str, password: str) -> CowboyClient:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    discard_mock_store_if_needed()
     seed_mock_store_if_needed()
     yield
     seen = set()
@@ -91,6 +92,13 @@ def seed_mock_store_if_needed() -> None:
 
     all_records = records or store.all_records()
     save_mock_sync_state(all_records)
+
+
+def discard_mock_store_if_needed() -> None:
+    if mock_server_enabled():
+        return
+    if store.load_sync_state().get("mock") is True:
+        store.clear()
 
 
 def save_mock_sync_state(records: list[dict]) -> None:
@@ -170,6 +178,7 @@ async def login(body: Annotated[LoginRequest, Body()], response: Response) -> di
         await client.close()
         raise HTTPException(status_code=exc.status_code, detail=exc.payload or str(exc)) from exc
 
+    discard_mock_store_if_needed()
     token = secrets.token_urlsafe(32)
     sessions[token] = client
     response.set_cookie(

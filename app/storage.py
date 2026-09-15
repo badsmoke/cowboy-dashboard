@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,10 @@ class TripStore:
     def ensure(self) -> None:
         self.trips_dir.mkdir(parents=True, exist_ok=True)
         self.api_cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def clear(self) -> None:
+        if self.root.exists():
+            shutil.rmtree(self.root)
 
     def trip_path(self, trip_id: int | str) -> Path:
         return self.trips_dir / f"{trip_id}.json"
